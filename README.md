@@ -11,7 +11,7 @@
 
 This project provides Python and shell scripts to automate the creation of Oracle Free Tier ARM instances (2 OCPU, 12 GB RAM) or the Oracle Free Tier AMD instance (1 OCPU, 1 GB RAM) with minimal manual intervention. Acquiring resources in certain availability domains can be challenging due to high demand, and repeatedly attempting creation through the Oracle console is impractical. While other methods like OCI CLI and PHP are available (linked at the end), this solution aims to streamline the process by implementing it in Python.
 
-The script attempts to create an instance every 60 seconds or as per the `REQUEST_WAIT_TIME_SECS` variable specified in the `oci.env` file until the instance is successfully created. Upon completion, a file named `INSTANCE_CREATED` is generated in the project directory, containing details about the newly created instance. Additionally, you can configure the script to send a Gmail notification upon instance creation.
+The script attempts to create an instance until capacity opens up. `REQUEST_WAIT_TIME_SECS` sets the initial retry interval (minimum 60 seconds), with an additional 0–25% random delay. Each rate limit doubles the interval up to 15 minutes; subsequent capacity misses retain the slower interval. A longer configured interval is preserved. Server `Retry-After` delays take precedence when longer. Launch calls explicitly disable SDK retries so the outer loop controls pacing. Upon completion, a file named `INSTANCE_CREATED` is generated in the project directory, containing details about the newly created instance. Additionally, you can configure the script to send a Gmail notification upon instance creation.
 
 **Note: This script doesn't configure a public IP by default; you need to configure it post the creation of the instance from the console. (Planning on automating it soon)**
 
@@ -135,7 +135,7 @@ flowchart TD
 
 **Optional Fields:**
 - `DISPLAY_NAME`: Name of the Instance
-- `REQUEST_WAIT_TIME_SECS`: Wait before trying to launch an instance again.
+- `REQUEST_WAIT_TIME_SECS`: Initial retry interval in seconds (minimum 60); adaptive throttling can increase it.
 - `SSH_AUTHORIZED_KEYS_FILE`: Give the absolute path of an SSH public key for ARM instance. **The program will create a public and private key pair with the name specified if the key file doesn't exist; otherwise, it uses the one specified**.
 - `OCI_SUBNET_ID`: The `OCID` of an existing subnet. **Required when running the script locally** (not on an OCI Micro instance). Leave empty when running on a Micro instance — the script auto-detects the subnet. If left empty while running locally the script may pick an unexpected subnet.
     >  This can be found in `Networking` > `Virtual cloud networks` > `<VPC-Name>` > `Subnet Details`.
@@ -201,7 +201,7 @@ TELEGRAM_USER_ID=your_telegram_user_id_here
 
 **Is the script actually working? The log shows "Out of host capacity" errors.**
 
-Yes — this is completely normal. `Out of host capacity` (or `InternalError: Out of host capacity`) means Oracle doesn't have free capacity right now. The script will keep retrying every `REQUEST_WAIT_TIME_SECS` seconds until capacity opens up. As long as you see these lines in `launch_instance.log`, the script is running correctly.
+Yes — this is completely normal. `Out of host capacity` (or `InternalError: Out of host capacity`) means Oracle doesn't have free capacity right now. The script will keep retrying using the adaptive retry interval until capacity opens up. As long as you see these lines in `launch_instance.log`, the script is running correctly.
 
 **How do I stop the script?**
 
@@ -209,7 +209,7 @@ If you launched it with `setup_init.sh`, send SIGINT to the shell session (Ctrl+
 
 **How do I change how often it retries?**
 
-Set `REQUEST_WAIT_TIME_SECS` in `oci.env`. The default is 60 seconds. Setting it too low (e.g., < 30s) risks rate-limiting from OCI (`TooManyRequests` error).
+Set `REQUEST_WAIT_TIME_SECS` in `oci.env`. The default and minimum are 60 seconds. Rate limits double the interval up to 15 minutes, plus 0–25% jitter. Capacity errors retain the learned interval. Restarting resets it to the configured value. This reduces throttling but cannot guarantee capacity or eliminate rate limits. Run offline checks with `python -m unittest test_retry_policy`.
 
 **I see a `LimitExceeded` error — does that mean I already have an instance?**
 

@@ -1,0 +1,9 @@
+name: Retry policy tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -B -m unittest -v test_retry_policy
+      - run: python3 -c "import ast; ast.parse(open('main.py').read())"
