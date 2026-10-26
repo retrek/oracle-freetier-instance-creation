@@ -16,6 +16,8 @@ import paramiko
 from dotenv import load_dotenv
 import requests
 
+from retry_policy import retry_delay
+
 # Load environment variables from .env file
 load_dotenv('oci.env')
 
@@ -26,7 +28,8 @@ E2_MICRO_SHAPE = "VM.Standard.E2.1.Micro"
 OCI_CONFIG = os.getenv("OCI_CONFIG", "").strip()
 OCT_FREE_AD = os.getenv("OCT_FREE_AD", "").strip()
 DISPLAY_NAME = os.getenv("DISPLAY_NAME", "").strip()
-WAIT_TIME = int(os.getenv("REQUEST_WAIT_TIME_SECS", "0").strip())
+WAIT_TIME = max(60, int(os.getenv("REQUEST_WAIT_TIME_SECS", "60").strip()))
+retry_interval = WAIT_TIME
 SSH_AUTHORIZED_KEYS_FILE = os.getenv("SSH_AUTHORIZED_KEYS_FILE", "").strip()
 OCI_IMAGE_ID = os.getenv("OCI_IMAGE_ID", None).strip() if os.getenv("OCI_IMAGE_ID") else None
 OCI_COMPUTE_SHAPE = os.getenv("OCI_COMPUTE_SHAPE", ARM_SHAPE).strip()
@@ -298,6 +301,8 @@ def handle_errors(command, data, log):
         Raises Exception for unexpected errors.
     """
 
+    global retry_interval
+
     # Check for temporary errors that can be retried
     retryable_codes = {
         "TooManyRequests",
@@ -305,7 +310,7 @@ def handle_errors(command, data, log):
         "InternalError",
         "RequestException",
     }
-    retryable_statuses = {502, 503, 504}
+    retryable_statuses = {429, 502, 503, 504}
     retryable_messages = (
         "Out of host capacity.",
         "Bad Gateway",
@@ -324,7 +329,10 @@ def handle_errors(command, data, log):
         or any(retry_msg in message for retry_msg in retryable_messages)
     ):
         log.info("Command: %s--\nOutput: %s", command, data)
-        time.sleep(WAIT_TIME)
+        retry_interval, delay = retry_delay(data, retry_interval)
+        log.info("Retrying in %.1f seconds (adaptive interval %.1f seconds)",
+                 delay, retry_interval)
+        time.sleep(delay)
         return True
 
     failure_msg = '\n'.join([f'{key}: {value}' for key, value in data.items()])
@@ -356,7 +364,8 @@ def execute_oci_command(client, method, *args, **kwargs):
         except oci.exceptions.ServiceError as srv_err:
             data = {"status": srv_err.status,
                     "code": srv_err.code,
-                    "message": srv_err.message}
+                    "message": srv_err.message,
+                    "retry_after": (srv_err.headers or {}).get("retry-after")}
             handle_errors(args, data, logging_step5)
         except oci.exceptions.RequestException as req_err:
             data = {
@@ -479,6 +488,7 @@ def launch_instance():
     while not instance_exist_flag:
         try:
             launch_instance_response = compute_client.launch_instance(
+                retry_strategy=oci.retry.NoneRetryStrategy(),
                 launch_instance_details=oci.core.models.LaunchInstanceDetails(
                     availability_domain=next(oci_ad_names),
                     compartment_id=oci_tenancy,
@@ -525,6 +535,7 @@ def launch_instance():
                 "status": srv_err.status,
                 "code": srv_err.code,
                 "message": srv_err.message,
+                "retry_after": (srv_err.headers or {}).get("retry-after"),
             }
             handle_errors("launch_instance", data, logging_step5)
         except oci.exceptions.RequestException as req_err:

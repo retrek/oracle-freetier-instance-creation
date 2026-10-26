@@ -45,7 +45,7 @@ Common errors and how to fix them.
 
 **Cause:** Transient network issue or OCI API outage.
 
-**This is handled automatically.** Since [#83](https://github.com/mohankumarpaluru/oracle-freetier-instance-creation/pull/83), connection errors and 503s are treated as retryable. The script will wait `REQUEST_WAIT_TIME_SECS` and try again. If the error is persistent (hours), check the [OCI Status page](https://ocistatus.oraclecloud.com/).
+**This is handled automatically.** Since [#83](https://github.com/mohankumarpaluru/oracle-freetier-instance-creation/pull/83), connection errors and 503s are treated as retryable. The script waits the adaptive retry interval plus jitter and tries again. Throttling increases that interval; see the README. If the error is persistent (hours), check the [OCI Status page](https://ocistatus.oraclecloud.com/).
 
 ---
 
@@ -85,8 +85,8 @@ A small number of users have reported that their Oracle Free Tier service limits
 **What likely happens:** Oracle's backend monitoring may flag tenancies that generate unusually high API call volumes over time. The OCI API Terms of Service permit programmatic access, including instance provisioning, but Oracle retains the right to take action on accounts that are flagged.
 
 **What this script does by default:**
-- Makes one API call every `REQUEST_WAIT_TIME_SECS` seconds (default: 60 seconds).
-- At the default rate that is ~1,440 API calls per day — broadly comparable to other provisioning tools.
+- Makes one launch call per adaptive retry interval plus 0–25% jitter (initial minimum: 60 seconds). Each throttle doubles the interval up to 15 minutes; capacity misses retain it. Longer server `Retry-After` delays are honored. SDK launch retries are explicitly disabled; setup and success checks also make API calls.
+- The initial 60-second minimum allows at most ~1,440 launch calls per day before jitter or backoff; throttling reduces that rate. This is pacing, not a guarantee that Oracle will accept requests.
 
 **Recommendations for responsible use:**
 - Keep `REQUEST_WAIT_TIME_SECS` at **60 or above**. There is no meaningful benefit to going lower, and it increases API call volume.
