@@ -13,7 +13,7 @@ SCRATCH = Path('/Volumes/SANDISK SSD/AgentScratch/tmp')
 def agent_config(root):
     return {
         'Label': LABEL,
-        # launchd cannot spawn directly inside macOS-protected Documents folders.
+        # Start from the system shell; keep launchd itself outside the runtime folder.
         'ProgramArguments': ['/bin/zsh', '-c', 'exec "$@"', 'oracle-bot',
                              str(root / '.venv/bin/python'), '-B', str(root / 'macos_agent.py')],
         'WorkingDirectory': '/',

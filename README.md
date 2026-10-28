@@ -76,7 +76,7 @@ View the logs of the instance creation API call in `launch_instance.log` and det
 
 ## macOS automatic restart
 
-After configuring `oci.env`, `oci_config`, and `.venv`, install the user launch agent from the checkout that holds those private files:
+Use a runtime checkout outside macOS-protected Documents/Downloads folders (the local service uses `/Volumes/SANDISK SSD/AgentScratch/large/oracle/instance-bot`). Keep its virtualenv and private OCI API key there as well. After configuring `oci.env`, `oci_config`, and `.venv`, install the user launch agent from that runtime checkout:
 
 ```bash
 .venv/bin/python -B macos_agent.py --install
@@ -84,7 +84,7 @@ launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.jeff.oracle-f
 launchctl print "gui/$(id -u)/com.jeff.oracle-free-tier"
 ```
 
-Stop any previous manually launched bot and notification watcher first, after checking their PID command lines. Reconcile live OCI instances before restarting; never run a manual bot alongside the service. The service writes the current bot PID to `main.pid`, holds a single-service lock, prevents idle sleep with `caffeinate`, and restarts unsuccessful exits after a minimum five-minute delay. Startup checks require mounted, writable `/Volumes/SANDISK SSD/AgentScratch/tmp`; no internal temporary-storage fallback is used. Existing bot logs remain in the checkout, with service errors in `~/Library/Logs/oracle-free-tier.log`.
+Stop any previous manually launched bot and notification watcher first, after checking their PID command lines. Reconcile live OCI instances before restarting; never run a manual bot alongside the service. The service writes the current bot PID to `main.pid`, holds a single-service lock, prevents idle sleep with `caffeinate`, and restarts unsuccessful exits after a minimum five-minute delay. For paths containing spaces, use relative `OCI_CONFIG=oci_config` and a relative `key_file` inside that file because the existing bot rejects spaces in configuration values. Startup checks require mounted, writable `/Volumes/SANDISK SSD/AgentScratch/tmp`; no internal temporary-storage fallback is used. Existing bot logs remain in the checkout, with service errors in `~/Library/Logs/oracle-free-tier.log`.
 
 This user agent starts at login after a reboot, so Jeff must sign in. A nonempty `INSTANCE_CREATED` receipt stops retries and triggers a macOS notification when acquired during this run; the receipt also prevents launching again at the next login. Check its contents against OCI inventory before deliberately removing a receipt. Capacity and acquisition remain controlled by Oracle. The former detached bot and `notify_watch.sh` are superseded by this service.
 
