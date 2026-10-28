@@ -34,7 +34,7 @@ Common errors and how to fix them.
 **Cause:** Python crashed before it could write `launch_instance.log`.
 
 **Fix:**
-1. Check `python_error.log` in the project directory — it captures Python startup errors since the fix in [#83](https://github.com/mohankumarpaluru/oracle-freetier-instance-creation/pull/83).
+1. Check `~/Library/Logs/oracle-free-tier.log` in the project directory — it captures Python startup errors since the fix in [#83](https://github.com/mohankumarpaluru/oracle-freetier-instance-creation/pull/83).
 2. Common causes: wrong Python version, missing dependencies, or bad `oci.env` values.
 3. Run `python3 main.py` directly to see the error in your terminal.
 4. Re-run setup: `./setup_init.sh` (not `rerun`) to reinstall dependencies.
@@ -111,4 +111,4 @@ If you used `setup_env.sh` to generate the file, re-run it — this quoting issu
 
 ## macOS bot stopped after reboot
 
-Detached processes and `caffeinate` do not survive a reboot. Use the [macOS launch agent](README.md#macos-automatic-restart), which starts at user login and retries unsuccessful exits. Inspect `launchctl print "gui/$(id -u)/com.jeff.oracle-free-tier"` and `python_error.log`; confirm SANDISK scratch is mounted and writable. Do not use `setup_init.sh rerun` or a separate watcher alongside an installed service. A nonempty `INSTANCE_CREATED` intentionally prevents new launches; reconcile it with OCI inventory before changing it.
+Detached processes and `caffeinate` do not survive a reboot. Use the [macOS launch agent](README.md#macos-automatic-restart), which starts at user login and retries unsuccessful exits. Inspect `launchctl print "gui/$(id -u)/com.jeff.oracle-free-tier"` and `~/Library/Logs/oracle-free-tier.log`; confirm SANDISK scratch is mounted and writable. Do not use `setup_init.sh rerun` or a separate watcher alongside an installed service. A nonempty `INSTANCE_CREATED` intentionally prevents new launches; reconcile it with OCI inventory before changing it.

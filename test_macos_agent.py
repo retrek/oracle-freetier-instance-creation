@@ -11,7 +11,9 @@ class MacOSAgentTests(unittest.TestCase):
     def test_launchd_policy_and_paths(self):
         root = Path('/example/bot with spaces')
         config = plistlib.loads(plistlib.dumps(agent.agent_config(root)))
-        self.assertEqual(config['ProgramArguments'], [str(root / '.venv/bin/python'), '-B', str(root / 'macos_agent.py')])
+        self.assertEqual(config['ProgramArguments'], ['/bin/zsh', '-c', 'exec "$@"', 'oracle-bot', str(root / '.venv/bin/python'), '-B', str(root / 'macos_agent.py')])
+        self.assertEqual(config['WorkingDirectory'], '/')
+        self.assertEqual(config['StandardErrorPath'], str(Path.home() / 'Library/Logs/oracle-free-tier.log'))
         self.assertEqual(config['KeepAlive'], {'SuccessfulExit': False})
         self.assertTrue(config['RunAtLoad'])
         self.assertEqual(config['ThrottleInterval'], 300)
