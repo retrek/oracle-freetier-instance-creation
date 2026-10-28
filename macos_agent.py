@@ -13,14 +13,16 @@ SCRATCH = Path('/Volumes/SANDISK SSD/AgentScratch/tmp')
 def agent_config(root):
     return {
         'Label': LABEL,
-        'ProgramArguments': [str(root / '.venv/bin/python'), '-B', str(root / 'macos_agent.py')],
-        'WorkingDirectory': str(root),
+        # Start from the system shell; keep launchd itself outside the runtime folder.
+        'ProgramArguments': ['/bin/zsh', '-c', 'exec "$@"', 'oracle-bot',
+                             str(root / '.venv/bin/python'), '-B', str(root / 'macos_agent.py')],
+        'WorkingDirectory': '/',
         'RunAtLoad': True,
         'KeepAlive': {'SuccessfulExit': False},
         'ThrottleInterval': 300,
         'EnvironmentVariables': {'TMPDIR': str(SCRATCH)},
-        'StandardOutPath': str(root / 'python_error.log'),
-        'StandardErrorPath': str(root / 'python_error.log'),
+        'StandardOutPath': str(Path.home() / 'Library/Logs/oracle-free-tier.log'),
+        'StandardErrorPath': str(Path.home() / 'Library/Logs/oracle-free-tier.log'),
     }
 
 
