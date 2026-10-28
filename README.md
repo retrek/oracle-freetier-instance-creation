@@ -74,6 +74,26 @@ The script will display an error prompt if an issue arises; otherwise, it will s
 
 View the logs of the instance creation API call in `launch_instance.log` and details about the parameters used (availability-domain, compartment-id, subnet-id, image-id) in `setup_and_info.log`.
 
+## macOS automatic restart
+
+After configuring `oci.env`, `oci_config`, and `.venv`, install the user launch agent from the checkout that holds those private files:
+
+```bash
+.venv/bin/python -B macos_agent.py --install
+launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.jeff.oracle-free-tier.plist"
+launchctl print "gui/$(id -u)/com.jeff.oracle-free-tier"
+```
+
+Stop any previous manually launched bot and notification watcher first, after checking their PID command lines. Reconcile live OCI instances before restarting; never run a manual bot alongside the service. The service writes the current bot PID to `main.pid`, holds a single-service lock, prevents idle sleep with `caffeinate`, and restarts unsuccessful exits after a minimum five-minute delay. Startup checks require mounted, writable `/Volumes/SANDISK SSD/AgentScratch/tmp`; no internal temporary-storage fallback is used. Existing bot logs remain in the checkout, with service errors in `python_error.log`.
+
+This user agent starts at login after a reboot, so Jeff must sign in. A nonempty `INSTANCE_CREATED` receipt stops retries and triggers a macOS notification when acquired during this run; the receipt also prevents launching again at the next login. Check its contents against OCI inventory before deliberately removing a receipt. Capacity and acquisition remain controlled by Oracle. The former detached bot and `notify_watch.sh` are superseded by this service.
+
+To stop the service without automatically restarting it:
+
+```bash
+launchctl bootout "gui/$(id -u)/com.jeff.oracle-free-tier"
+```
+
 ## Errors and Re-Run
 
 If the `oci_config` file is found to be incorrect, the script generates an `ERROR_IN_CONFIG.log` file. Verify the `oci_config` for accuracy, ensuring it aligns with the [sample_oci_config](https://github.com/mohankumarpaluru/oracle-freetier-instance-creation/blob/85b3ec065a91bb66206933a12a6bd58941446118/sample_oci_config#L1C1-L6C80) without any additional lines or characters.

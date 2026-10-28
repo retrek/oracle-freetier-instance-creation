@@ -108,3 +108,7 @@ DISPLAY_NAME="my arm instance"
 ```
 
 If you used `setup_env.sh` to generate the file, re-run it — this quoting issue was fixed in the script.
+
+## macOS bot stopped after reboot
+
+Detached processes and `caffeinate` do not survive a reboot. Use the [macOS launch agent](README.md#macos-automatic-restart), which starts at user login and retries unsuccessful exits. Inspect `launchctl print "gui/$(id -u)/com.jeff.oracle-free-tier"` and `python_error.log`; confirm SANDISK scratch is mounted and writable. Do not use `setup_init.sh rerun` or a separate watcher alongside an installed service. A nonempty `INSTANCE_CREATED` intentionally prevents new launches; reconcile it with OCI inventory before changing it.
